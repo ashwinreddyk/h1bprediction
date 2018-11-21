@@ -1,0 +1,37 @@
+---
+title: "BAwithR_Project"
+author: "Ashwin Kondapalli"
+date: "20 November 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+library(tidyverse)
+library(modelr)
+h1b_kaggle <- read_csv("h1b_kaggle.csv", col_names=TRUE)
+h1b_working <- h1b_kaggle
+h1b_filtered<-filter(h1b_working,CASE_STATUS %in% c('CERTIFIED','DENIED'))
+
+summary(h1b_working)
+
+h1b_working %>% filter(!is.na(CASE_STATUS)) %>% group_by(CASE_STATUS) %>% 
+  summarise(nr = length(lat)) %>% ungroup() -> dc
+
+ggplot(data = dc, aes(x = reorder(CASE_STATUS,nr), y = nr/1000)) +  
+  geom_bar(stat="identity", fill="tomato", colour="black") +
+  coord_flip() + theme_bw(base_size = 10)  +
+  labs(title="", x ="Case status", y = "Number of applications (thousands)")
+
+
+```
+
