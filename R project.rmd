@@ -1,6 +1,6 @@
 ---
 title: "R project"
-author: "jay jay"
+author: "Ashwin Kondapalli"
 date: "November 20, 2018"
 output:
   word_document: default
