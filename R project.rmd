@@ -1,0 +1,404 @@
+---
+title: "R project"
+author: "jay jay"
+date: "November 20, 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+library(tidyverse)
+library(ISLR)
+library(ggplot2)
+library(MASS)
+library(class)
+library(dplyr)
+library(caret)
+
+#READING THE DATA FROM csv FILE:-
+H1b<-read.csv("h1b_kaggle.csv")
+attach(H1b)
+
+#FILTER BASED IN CERTIFIED AND DENIED STATUS
+certified_only<-filter(H1b,(CASE_STATUS %in% "CERTIFIED" & FULL_TIME_POSITION %in% c("Y","N"))|(CASE_STATUS %in% "DENIED"))
+
+#POPULATE APPROVED AND REJECTED FOR CERTIFIED AND FULL TIME POSITION 
+#"Y" AND FULL TIME POSITION "N" RESPECTIVELY.
+
+certified_new<-certified_only %>% 
+   mutate(ACTUAL_STATUS = ifelse(CASE_STATUS %in% "CERTIFIED" & 
+                FULL_TIME_POSITION == "Y",
+                          "APPROVED", "REJECTED"))
+
+#REMOVE UNUSED FACTORS
+
+certified_new$CASE_STATUS<-droplevels(certified_new$CASE_STATUS)
+certified_new$CASE_STATUS<-as.factor(certified_new$CASE_STATUS)
+certified_new$SOC_NAME<-droplevels(certified_new$SOC_NAME)
+certified_new$SOC_NAME<-as.factor(certified_new$SOC_NAME) 
+
+certified_new$WORKSITE<-droplevels(certified_new$WORKSITE)
+certified_new$WORKSITE<-as.factor(certified_new$WORKSITE)
+certified_new$JOB_TITLE<-droplevels(certified_new$JOB_TITLE)
+certified_new$JOB_TITLE<-as.factor(certified_new$JOB_TITLE)
+
+
+certified_new$ACTUAL_STATUS<-as.factor(certified_new$ACTUAL_STATUS)
+
+##REMOVING THE 1 ST COLUMN:-
+
+certified_new <-certified_new[, -c(1)]
+certified_new<-certified_new %>% slice(1:5000000)
+str(certified_new)
+
+##Convert year to factor
+class(YEAR)
+certified_new$YEAR<-as.factor(certified_new$YEAR)
+
+##convert actual status to factor
+
+ACTUAL_STATUS1<-as.factor(certified_new$ACTUAL_STATUS)
+
+##random sampling
+set.seed(111)
+
+Train_set_index <- createDataPartition(y = certified_new$CASE_STATUS,p = .79, list = FALSE)
+
+##certified_new$CASE_STATUS<-as.factor(certified_new$CASE_STATUS)
+
+train_set <- certified_new[Train_set_index, ]
+test_set <- certified_new[-Train_set_index, ]
+
+##LOGISTIC REGRESSION FOR FULL_TIME_POSITION+lat+lon+PREVAILING_WAGE
+
+logistic<-glm(CASE_STATUS~FULL_TIME_POSITION+lat+lon+PREVAILING_WAGE,data = train_set,family = binomial)
+
+logistic_pred<-predict(logistic,test_set,type="response")
+
+confusion.matrix <- table(test_set$CASE_STATUS , logistic_pred > 0.5)
+summary(logistic)
+```
+
+```{r}
+
+##USE soc in the logistic regression:-
+
+#FILTER BASED IN CERTIFIED AND DENIED STATUS
+soc_raw_data<-filter(H1b,(CASE_STATUS %in% "CERTIFIED" & FULL_TIME_POSITION %in% c("Y","N"))|(CASE_STATUS %in% "DENIED"))
+
+#REMOVE UNUSED FACTORS
+
+soc_raw_data$CASE_STATUS<-droplevels(soc_raw_data$CASE_STATUS)
+soc_raw_data$CASE_STATUS<-as.factor(soc_raw_data$CASE_STATUS)
+
+#Filter data based on top 10 SOC
+
+top10_soc <-soc_raw_data %>%
+  group_by(SOC_NAME) %>%
+ summarise(num_app = n()) %>%
+  arrange(desc(num_app)) %>%
+  top_n(10)
+
+
+top10_soc_Data <- filter(soc_raw_data,SOC_NAME %in% top10_soc$SOC_NAME)
+
+top10_soc_Data$SOC_NAME<-droplevels(top10_soc_Data$SOC_NAME)
+top10_soc_Data$SOC_NAME<-as.factor(top10_soc_Data$SOC_NAME)
+
+str(top10_soc_Data)
+##random sampling
+set.seed(112)
+
+Train_set_index_1 <- createDataPartition(y = top10_soc_Data$CASE_STATUS,p = .79, list = FALSE)
+
+##certified_new$CASE_STATUS<-as.factor(certified_new$CASE_STATUS)
+
+train_set_1 <- top10_soc_Data[Train_set_index_1, ]
+test_set_1 <- top10_soc_Data[-Train_set_index_1, ]
+
+str(train_set_1)
+
+##LOGISTIC REGRESSION for FULL_TIME_POSITION+lat+lon+PREVAILING_WAGE+ TOP 10 SOC_NAME
+
+logistic_soc<-glm(CASE_STATUS~FULL_TIME_POSITION+lat+lon+PREVAILING_WAGE+SOC_NAME,data = train_set_1,family = binomial)
+
+logistic_pred_soc<-predict(logistic_soc,test_set_1,type="response",se.fit = FALSE)
+
+confusion.matrix_soc <- table(test_set_1$CASE_STATUS , logistic_pred_soc > 0.5)
+confusion.matrix_soc
+summary(logistic_soc)
+
+
+## Including Plots
+
+```
+
+```{r}
+
+##USE soc in the logistic regression:-
+
+#FILTER BASED IN CERTIFIED AND DENIED STATUS
+soc_raw_data<-filter(H1b,(CASE_STATUS %in% "CERTIFIED" & FULL_TIME_POSITION %in% c("Y","N"))|(CASE_STATUS %in% "DENIED"))
+
+#REMOVE UNUSED FACTORS
+
+soc_raw_data$CASE_STATUS<-droplevels(soc_raw_data$CASE_STATUS)
+soc_raw_data$CASE_STATUS<-as.factor(soc_raw_data$CASE_STATUS)
+
+#Filter data based on top 10 SOC
+
+top10_soc <-soc_raw_data %>%
+  group_by(SOC_NAME) %>%
+ summarise(num_app = n()) %>%
+  arrange(desc(num_app)) %>%
+  top_n(10)
+
+#Filter data based on top 10 JOB TITLE
+
+top10_jobtitle <-soc_raw_data %>%
+  group_by(JOB_TITLE) %>%
+ summarise(num_app = n()) %>%
+  arrange(desc(num_app)) %>%
+  top_n(10)
+
+#Filter data based on top 10 EMPLOYER
+
+top10_employer_name <-soc_raw_data %>%
+  group_by(EMPLOYER_NAME) %>%
+ summarise(num_app = n()) %>%
+  arrange(desc(num_app)) %>%
+  top_n(10)
+
+
+top10_soc_Data <- filter(soc_raw_data,JOB_TITLE %in% top10_jobtitle$JOB_TITLE )
+
+
+top10_soc_Data$JOB_TITLE<-droplevels(top10_soc_Data$JOB_TITLE)
+top10_soc_Data$JOB_TITLE<-as.factor(top10_soc_Data$JOB_TITLE)
+
+
+str(top10_soc_Data)
+##random sampling
+set.seed(112)
+
+Train_set_index_1 <- createDataPartition(y = top10_soc_Data$CASE_STATUS,p = .79, list = FALSE)
+
+##certified_new$CASE_STATUS<-as.factor(certified_new$CASE_STATUS)
+
+train_set_1 <- top10_soc_Data[Train_set_index_1, ]
+test_set_1 <- top10_soc_Data[-Train_set_index_1, ]
+
+str(train_set_1)
+
+##LOGISTIC REGRESSION for FULL_TIME_POSITION+lat+lon+PREVAILING_WAGE+SOC_NAME
+
+logistic_soc<-glm(CASE_STATUS~FULL_TIME_POSITION+lat+lon+PREVAILING_WAGE+JOB_TITLE,data = train_set_1,family = binomial)
+
+logistic_pred_soc<-predict(logistic_soc,test_set_1,type="response",se.fit = FALSE)
+
+confusion.matrix_soc <- table(test_set_1$CASE_STATUS , logistic_pred_soc > 0.5)
+confusion.matrix_soc
+summary(logistic_soc)
+
+
+
+## Including Plots
+```
+
+```{r}
+
+##USE soc in the logistic regression:-
+
+#FILTER BASED IN CERTIFIED AND DENIED STATUS
+soc_raw_data<-filter(H1b,(CASE_STATUS %in% "CERTIFIED" & FULL_TIME_POSITION %in% c("Y","N"))|(CASE_STATUS %in% "DENIED"))
+
+#REMOVE UNUSED FACTORS
+
+soc_raw_data$CASE_STATUS<-droplevels(soc_raw_data$CASE_STATUS)
+soc_raw_data$CASE_STATUS<-as.factor(soc_raw_data$CASE_STATUS)
+
+#Filter data based on top 10 SOC
+
+top10_soc <-soc_raw_data %>%
+  group_by(SOC_NAME) %>%
+ summarise(num_app = n()) %>%
+  arrange(desc(num_app)) %>%
+  top_n(10)
+
+#Filter data based on top 10 JOB TITLE
+
+top10_jobtitle <-soc_raw_data %>%
+  group_by(JOB_TITLE) %>%
+ summarise(num_app = n()) %>%
+  arrange(desc(num_app)) %>%
+  top_n(10)
+
+#Filter data based on top 10 EMPLOYER
+
+top10_employer_name <-soc_raw_data %>%
+  group_by(EMPLOYER_NAME) %>%
+ summarise(num_app = n()) %>%
+  arrange(desc(num_app)) %>%
+  top_n(10)
+
+
+top10_soc_Data <- filter(soc_raw_data,EMPLOYER_NAME %in% top10_employer_name$EMPLOYER_NAME)
+
+
+#top10_soc_Data <- filter(soc_raw_data,EMPLOYER_NAME %in% top10_employer_name$EMPLOYER_NAME & JOB_TITLE #%in%top10_jobtitle$JOB_TITLE )
+
+top10_soc_Data$JOB_TITLE<-droplevels(top10_soc_Data$JOB_TITLE)
+top10_soc_Data$JOB_TITLE<-as.factor(top10_soc_Data$JOB_TITLE)
+top10_soc_Data$EMPLOYER_NAME<-droplevels(top10_soc_Data$EMPLOYER_NAME)
+top10_soc_Data$EMPLOYER_NAME<-as.factor(top10_soc_Data$EMPLOYER_NAME)
+
+str(top10_soc_Data)
+##random sampling
+set.seed(112)
+
+Train_set_index_1 <- createDataPartition(y = top10_soc_Data$CASE_STATUS,p = .79, list = FALSE)
+
+##certified_new$CASE_STATUS<-as.factor(certified_new$CASE_STATUS)
+
+train_set_1 <- top10_soc_Data[Train_set_index_1, ]
+test_set_1 <- top10_soc_Data[-Train_set_index_1, ]
+
+str(train_set_1)
+
+##LOGISTIC REGRESSION for FULL_TIME_POSITION+lat+lon+PREVAILING_WAGE+SOC_NAME
+
+logistic_soc<-glm(CASE_STATUS~FULL_TIME_POSITION+lat+lon+PREVAILING_WAGE+EMPLOYER_NAME,data = train_set_1,family = binomial)
+
+logistic_pred_soc<-predict(logistic_soc,test_set_1,type="response",se.fit = FALSE)
+
+confusion.matrix_soc <- table(test_set_1$CASE_STATUS , logistic_pred_soc > 0.5)
+confusion.matrix_soc
+summary(logistic_soc)
+
+## Including Plots
+```
+
+```{r}
+#perform the above regression with LDA
+#Filter data based on top 10 SOC
+
+top10_soc <-soc_raw_data %>%
+  group_by(SOC_NAME) %>%
+ summarise(num_app = n()) %>%
+  arrange(desc(num_app)) %>%
+  top_n(15)
+
+#Filter data based on top 10 JOB TITLE
+
+top10_jobtitle <-soc_raw_data %>%
+  group_by(JOB_TITLE) %>%
+ summarise(num_app = n()) %>%
+  arrange(desc(num_app)) %>%
+  top_n(15)
+
+#Filter data based on top 10 EMPLOYER
+
+top10_employer_name <-soc_raw_data %>%
+  group_by(EMPLOYER_NAME) %>%
+ summarise(num_app = n()) %>%
+  arrange(desc(num_app)) %>%
+  top_n(15)
+
+#Considering top 10 job title and top 10 employer_name together
+top10_soc_Data <- filter(soc_raw_data,JOB_TITLE %in%top10_jobtitle$JOB_TITLE & EMPLOYER_NAME %in% top10_employer_name$EMPLOYER_NAME & SOC_NAME %in% top10_soc$SOC_NAME)
+
+top10_soc_Data$JOB_TITLE<-droplevels(top10_soc_Data$JOB_TITLE)
+top10_soc_Data$JOB_TITLE<-as.factor(top10_soc_Data$JOB_TITLE)
+top10_soc_Data$EMPLOYER_NAME<-droplevels(top10_soc_Data$EMPLOYER_NAME)
+top10_soc_Data$EMPLOYER_NAME<-as.factor(top10_soc_Data$EMPLOYER_NAME)
+top10_soc_Data$SOC_NAME<-droplevels(top10_soc_Data$SOC_NAME)
+top10_soc_Data$SOC_NAME<-as.factor(top10_soc_Data$SOC_NAME)
+
+str(top10_soc_Data)
+##random sampling
+set.seed(112)
+
+Train_set_index_1 <- createDataPartition(y = top10_soc_Data$CASE_STATUS,p = .79, list = FALSE)
+
+##certified_new$CASE_STATUS<-as.factor(certified_new$CASE_STATUS)
+
+train_set_1 <- top10_soc_Data[Train_set_index_1, ]
+test_set_1 <- top10_soc_Data[-Train_set_index_1, ]
+
+LDA_soc<-lda(CASE_STATUS~FULL_TIME_POSITION+lat+lon+PREVAILING_WAGE+EMPLOYER_NAME+JOB_TITLE+SOC_NAME,data = train_set_1)
+
+LDA_soc
+
+LDA_pred_soc<-predict(LDA_soc,test_set_1,type="response")
+
+confusion.matrix_soc <- table(LDA_pred_soc$class,test_set_1$CASE_STATUS)
+
+confusion.matrix_soc
+
+```
+
+```{r}
+#perform the above regression with QDA
+
+QDA_soc<-qda(CASE_STATUS~FULL_TIME_POSITION+lat+lon+PREVAILING_WAGE+SOC_NAME+JOB_TITLE,data = train_set_1)
+
+QDA_soc
+
+QDA_pred_soc<-predict(QDA_soc,test_set_1,type="response")
+
+confusion.matrix_soc <- table(QDA_pred_soc$class,test_set_1$CASE_STATUS)
+
+confusion.matrix_soc
+
+```
+```{r}
+#perform the above regression with PCA
+
+library(devtools)
+install_github("vqv/ggbiplot")
+library(pls)
+library(ggbiplot)
+
+top10_soc_Data1<-top10_soc_Data %>% slice(2:100000)
+
+top10_soc_Data1<-top10_soc_Data1 %>% filter(!is.na(CASE_STATUS),!is.na(EMPLOYER_NAME),!is.na(SOC_NAME),!is.na(JOB_TITLE),!is.na(FULL_TIME_POSITION),!is.na(PREVAILING_WAGE),!is.na(YEAR),!is.na(WORKSITE),!is.na(lon),!is.na(lat))
+
+top10_soc_Data1<-top10_soc_Data1[, -c(1)]
+
+
+
+top10_soc_Data1$CASE_STATUS<-as.factor(top10_soc_Data1$CASE_STATUS)
+top10_soc_Data1$EMPLOYER_NAME<-as.numeric(as.factor(top10_soc_Data1$EMPLOYER_NAME))
+top10_soc_Data1$SOC_NAME<-as.numeric(as.factor(top10_soc_Data1$SOC_NAME))
+top10_soc_Data1$JOB_TITLE<-as.numeric(as.factor(top10_soc_Data1$JOB_TITLE))
+top10_soc_Data1$FULL_TIME_POSITION<-as.numeric(as.factor(top10_soc_Data1$FULL_TIME_POSITION))
+top10_soc_Data1$PREVAILING_WAGE<-as.numeric(as.factor(top10_soc_Data1$PREVAILING_WAGE))
+top10_soc_Data1$YEAR<-as.numeric(as.factor(top10_soc_Data1$YEAR))
+top10_soc_Data1$WORKSITE<-as.numeric(as.factor(top10_soc_Data1$WORKSITE))
+top10_soc_Data1$lon<-as.numeric(as.factor(top10_soc_Data1$lon))
+top10_soc_Data1$lat<-as.numeric(as.factor(top10_soc_Data1$lat))
+
+
+pcr.fit<-prcomp(top10_soc_Data1[,2:10], scale.=TRUE)
+
+g<-ggbiplot(pcr.fit,ellipse=TRUE,labels=rownames(top10_soc_Data1), groups=top10_soc_Data1[,1],obs.scale = 1, var.scale = 1,circle = TRUE)
+g <- g + scale_color_continuous(name = '')
+g <- g + theme(legend.direction = 'horizontal', 
+              legend.position = 'top')
+print(g)
+pcr.fit.frame<-data.frame(pcr.fit$x,CASE_STATUS=top10_soc_Data1$CASE_STATUS)
+ggplot(pcr.fit.frame,aes(x=PC1,y=PC2,colour=CASE_STATUS))+geom_point(size=3,alpha=0.5)+
+   theme_classic()
+```
+
